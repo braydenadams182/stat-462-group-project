@@ -1,5 +1,6 @@
 # Load necessary library
 library(glmnet)
+library(ggplot2)
 
 # Define player stats (including Furkan Korkmaz)
 players <- data.frame(
@@ -79,4 +80,141 @@ ggplot(players, aes(x = rating_2k, y = predicted_rating_ridge)) +
 
 write.csv(ranked_players_formula, "formula_based_rankings.csv")
 write.csv(ranked_players_ridge, "ridge_based_rankings.csv")
+coef(ridge_model, s = "lambda.min")
+
+# Hyperparameter tuning for lambda in ridge regression
+lambda_grid <- 10^seq(3, -3, by = -1)
+ridge_model_tuned <- cv.glmnet(x, y, alpha = 0, lambda = lambda_grid)
+best_lambda <- ridge_model_tuned$lambda.min
+print(paste("Best lambda:", best_lambda))
+
+# Feature importance based on ridge regression coefficients
+coefficients <- coef(ridge_model, s = "lambda.min")
+coefficients_df <- data.frame(
+  feature = rownames(coefficients),
+  importance = as.vector(coefficients)
+)
+coefficients_df <- coefficients_df[-1,]  # Remove the intercept
+coefficients_df <- coefficients_df[order(abs(coefficients_df$importance), decreasing = TRUE), ]
+
+print("Feature Importance from Ridge Regression:")
+print(coefficients_df)
+
+# Input player names and rank based on formula or ridge regression
+custom_player_names <- c("Nikola Jokic", "Stephen Curry", "Furkan Korkmaz")
+custom_players <- players[players$name %in% custom_player_names, ]
+custom_players_formula <- custom_players[order(-custom_players$final_rating_formula), ]
+custom_players_ridge <- custom_players[order(-custom_players$predicted_rating_ridge), ]
+
+print("Custom Player Rankings based on Formula:")
+print(custom_players_formula[, c("name", "final_rating_formula")])
+print("Custom Player Rankings based on Ridge Regression:")
+print(custom_players_ridge[, c("name", "predicted_rating_ridge")])
+
+# Save feature importance to CSV
+write.csv(coefficients_df, "feature_importance.csv")
+
+# Save custom player rankings
+write.csv(custom_players_formula, "custom_player_formula_rankings.csv")
+write.csv(custom_players_ridge, "custom_player_ridge_rankings.csv")
+
+# Bar plot of feature importance
+ggplot(coefficients_df, aes(x = reorder(feature, importance), y = importance)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +
+  labs(title = "Feature Importance from Ridge Regression", x = "Feature", y = "Importance")
+
+# Distribution plot of the ratings
+ggplot(players, aes(x = final_rating_formula)) +
+  geom_histogram(binwidth = 1, fill = "blue", alpha = 0.7) +
+  labs(title = "Distribution of Formula-Based Ratings", x = "Formula Ratings", y = "Frequency")
+
+ggplot(players, aes(x = predicted_rating_ridge)) +
+  geom_histogram(binwidth = 1, fill = "green", alpha = 0.7) +
+  labs(title = "Distribution of Ridge Regression Ratings", x = "Ridge Regression Ratings", y = "Frequency")
+
+# Calculate MAE and RMSE for both models
+mae_formula <- mean(abs(players$final_rating_formula - players$rating_2k))
+rmse_formula <- sqrt(mean((players$final_rating_formula - players$rating_2k)^2))
+
+mae_ridge <- mean(abs(players$predicted_rating_ridge - players$rating_2k))
+rmse_ridge <- sqrt(mean((players$predicted_rating_ridge - players$rating_2k)^2))
+
+print(paste("MAE for formula-based ratings:", mae_formula))
+print(paste("RMSE for formula-based ratings:", rmse_formula))
+
+print(paste("MAE for ridge regression ratings:", mae_ridge))
+print(paste("RMSE for ridge regression ratings:", rmse_ridge))
+
+# Fit lasso regression model
+lasso_model <- cv.glmnet(x, y, alpha = 1)
+players$predicted_rating_lasso <- predict(lasso_model, s = "lambda.min", newx = x)
+
+# Compare correlations of ridge and lasso models
+correlation_coefficient_lasso <- cor(players$predicted_rating_lasso, players$rating_2k)
+print(paste("The correlation coefficient between the lasso regression ratings and the actual ratings is", correlation_coefficient_lasso))
+
+# Calculate residuals for ridge regression
+players$residuals_ridge <- players$rating_2k - players$predicted_rating_ridge
+
+# Visualize residuals
+ggplot(players, aes(x = predicted_rating_ridge, y = residuals_ridge)) +
+  geom_point(color = 'purple') +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = 'Residual Analysis for Ridge Regression', x = 'Predicted Ratings', y = 'Residuals')
+
+# Rank players by specific skill areas
+ranked_by_scoring <- players[order(-players$scoring), c("name", "scoring")]
+ranked_by_defense <- players[order(-players$defense), c("name", "defense")]
+
+print("Top Players by Scoring:")
+print(head(ranked_by_scoring, 5))
+
+print("Top Players by Defense:")
+print(head(ranked_by_defense, 5))
+
+library(stats)
+
+# Perform PCA
+player_stats <- players[, c("points_per_game", "defensive_rating", "assists_per_game", "per", "win_shares_per_48", "bpm", "vorp")]
+pca_model <- prcomp(player_stats, scale. = TRUE)
+
+# Add PCA components to the dataset
+players$PC1 <- pca_model$x[, 1]
+players$PC2 <- pca_model$x[, 2]
+
+# Visualize PCA
+ggplot(players, aes(x = PC1, y = PC2, label = name)) +
+  geom_point(color = 'blue') +
+  geom_text(size = 3, hjust = 1.1, vjust = 1.1) +
+  labs(title = "PCA of Player Stats", x = "Principal Component 1", y = "Principal Component 2")
+
+# Fit lasso regression for comparison
+lasso_model <- cv.glmnet(x, y, alpha = 1)
+players$predicted_rating_lasso <- predict(lasso_model, s = "lambda.min", newx = x)
+
+# Compare correlations
+correlation_lasso <- cor(players$predicted_rating_lasso, players$rating_2k)
+print(paste("The correlation coefficient for Lasso regression is", correlation_lasso))
+
+library(plotly)
+
+# Create an interactive scatter plot for ridge regression
+ridge_plot <- ggplot(players, aes(x = rating_2k, y = predicted_rating_ridge, text = name)) +
+  geom_point(color = 'green') +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = 'Ridge Regression Ratings vs. 2K Ratings', x = '2K Ratings', y = 'Predicted Ratings')
+ggplotly(ridge_plot)
+
+# Save correlation coefficients
+correlation_results <- data.frame(
+  Model = c("Formula", "Ridge Regression", "Lasso Regression"),
+  Correlation = c(correlation_coefficient_formula, correlation_coefficient_ridge, correlation_lasso)
+)
+write.csv(correlation_results, "correlation_results.csv")
+
+# Save feature importance
+write.csv(ridge_coefficients, "ridge_feature_importance.csv")
+
+
 

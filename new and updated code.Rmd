@@ -1,0 +1,334 @@
+---
+title: "test new code"
+author: "Brayden Adams"
+date: "2024-12-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r new code}
+# Load necessary library
+library(glmnet)
+library(ggplot2)
+
+# Define player stats (including Furkan Korkmaz)
+players <- data.frame(
+  name = c(
+    "Nikola Jokic", "Luka Doncic", "Joel Embiid", "Giannis Antetokounmpo", "Shai Gilgeous-Alexander", 
+    "Anthony Davis", "LeBron James", "Kevin Durant", "Jayson Tatum", "Stephen Curry", "Killian Hayes", 
+    "Patrick Beverley", "Jay Huff", "Nicolas Claxton", "Desmond Bane", "Tobias Harris", "Paolo Banchero", 
+    "Myles Turner", "Austin Reaves", "D'Angelo Russell", "Ja Morant", "Furkan Korkmaz", "Kyrie Irving", 
+    "Lamelo Ball", "Jaylen Brown", "Devin Booker", "James Harden", "Damian Lillard", "Jimmy Butler", 
+    "Zion Williamson", "De'Aaron Fox", "Jrue Holiday", "Bam Adebayo", "Jaren Jackson Jr.", "Donovan Mitchell", 
+    "Klay Thompson", "Chris Paul", "Karl-Anthony Towns", "Brandon Ingram", "DeMar DeRozan", "Trae Young", 
+    "Bradley Beal", "Pascal Siakam", "CJ McCollum", "Tyrese Haliburton", "Kawhi Leonard", "Paul George", 
+    "Fred VanVleet", "Kristaps Porzingis", "Rudy Gobert", "Precious Achiuwa", "Steven Adams", "Ochai Agbaji", 
+    "Santi Aldama", "Trey Alexander", "Nickeil Alexander-Walker", "Grayson Allen", "Jarrett Allen", "Jose Alvarado", 
+    "Kyle Anderson", "Cole Anthony", "OG Anunoby", "Deni Avdija", "Deandre Ayton", "Marvin Bagley III", 
+    "Patrick Baldwin Jr.", "Lonzo Ball", "Mo Bamba", "Dalano Banton", "Dominick Barlow", "Harrison Barnes", 
+    "Scottie Barnes", "RJ Barrett", "Charles Bassey", "Emoni Bates", "Jamison Battle", "Nicolas Batum", 
+    "Malik Beasley", "MarJon Beauchamp", "Reece Beekman", "Saddiq Bey", "Goga Bitadze", "Anthony Black", 
+    "Bogdan Bogdanović", "Bojan Bogdanović", "Bol Bol", "Adem Bona", "Brandon Boston Jr.", "Chris Boucher", 
+    "Malaki Branham", "Christian Braun", "Jalen Bridges", "Mikal Bridges", "Michael Porter Jr.", "Darius Garland", "Julius Randle"
+  ),
+  points_per_game = c(26.4, 33.9, 34.7, 30.4, 30.1, 24.7, 25.7, 27.1, 28.4, 26.4, 6.9, 6.2, 3.5, 12.6, 21.5, 18.0, 20.0, 15.0, 13.0, 17.0, 25.1, 6.8, 23.0, 23.3, 23.5, 29.1, 21.0, 30.0, 21.5, 22.0, 25.0, 20.3, 18.5, 22.3, 27.1, 21.5, 14.2, 24.0, 22.8, 20.5, 28.1, 23.2, 19.2, 20.7, 20.4, 23.0, 24.1, 20.9, 21.6, 14.1, 12.5, 9.2, 7.3, 5.6, 6.4, 8.0, 9.1, 10.5, 14.4, 11.0, 13.2, 11.6, 13.8, 14.7, 12.9, 16.2, 13.0, 11.9, 10.7, 12.0, 11.5, 12.1, 16.9, 12.4, 10.6, 17.5, 13.7, 15.0, 9.9, 10.2, 12.4, 16.1, 9.5, 7.6, 12.3, 14.8, 19.2, 9.1, 8.5, 7.3, 12.7, 10.0, 11.4, 17.1, 10.4, 13.8),
+  defensive_rating = c(107, 110, 107, 102, 108, 104, 106, 109, 107, 111, 110, 110, 103, 101, 106, 105, 108, 103, 107, 108, 105, 110, 108, 107, 105, 106, 110, 107, 108, 107, 106, 108, 104, 102, 107, 109, 110, 107, 106, 108, 112, 108, 104, 105, 107, 106, 108, 103, 104, 107, 105, 110, 112, 107, 104, 106, 109, 107, 106, 108, 110, 106, 108, 105, 107, 108, 109, 106, 105, 108, 107, 106, 109, 108, 107, 106, 108, 105, 107, 106, 108, 104, 106, 107, 105, 107, 109, 106, 108, 105, 109, 106, 108, 107, 105, 106),
+  assists_per_game = c(9.0, 9.8, 5.6, 6.5, 6.2, 3.5, 8.3, 5.0, 5.6, 5.1, 4.9, 2.9, 1.0, 1.5, 4.4, 2.5, 3.7, 1.2, 3.4, 6.1, 8.1, 1.2, 6.9, 7.6, 3.1, 6.5, 10.8, 7.5, 6.0, 4.3, 6.4, 7.9, 5.4, 2.8, 5.3, 2.9, 9.5, 4.1, 5.5, 6.4, 9.1, 6.6, 4.5, 5.8, 7.8, 6.2, 5.9, 6.1, 5.7, 4.3, 2.1, 1.6, 1.3, 1.8, 2.5, 2.9, 1.4, 1.9, 1.7, 3.6, 1.2, 2.9, 3.8, 1.9, 1.8, 1.0, 2.2, 3.4, 1.5, 3.0, 1.8, 2.4, 3.6, 2.3, 1.8, 3.9, 2.0, 3.8, 1.9, 2.0, 3.1, 1.5, 1.6, 1.9, 2.3, 4.3, 1.7, 1.8, 2.4, 2.7, 1.9, 2.0, 4.1, 1.4, 2.3, 2.2),
+  per = c(32.1, 23.5, 28.3, 29.5, 27.8, 26.4, 25.7, 27.1, 26.9, 28.5, 10.5, 12.2, 15.0, 20.3, 19.8, 17.5, 16.0, 18.0, 14.0, 16.5, 20.8, 11.2, 21.8, 22.4, 19.2, 25.0, 22.1, 24.8, 21.9, 23.0, 24.3, 19.6, 18.9, 21.5, 22.0, 18.5, 17.0, 22.5, 21.3, 20.0, 27.5, 22.4, 20.8, 22.1, 20.3, 24.3, 23.5, 20.0, 20.8, 19.3, 18.2, 15.0, 14.0, 16.0, 14.5, 13.0, 13.5, 14.8, 14.3, 13.7, 14.2, 15.5, 13.9, 12.8, 15.4, 14.7, 15.3, 13.2, 14.1, 15.0, 13.8, 14.9, 14.3, 13.6, 15.2, 14.5, 13.9, 15.1, 14.4, 15.3, 13.5, 15.2, 13.8, 14.4, 15.0, 14.1, 14.7, 13.3, 14.8, 15.2, 14.0, 14.3, 14.5, 15.1, 13.6, 13.9),
+  win_shares_per_48 = c(0.301, 0.250, 0.270, 0.280, 0.240, 0.220, 0.230, 0.250, 0.260, 0.270, 0.050, 0.050, 0.100, 0.150, 0.200, 0.180, 0.150, 0.200, 0.120, 0.140, 0.180, 0.050, 0.270, 0.260, 0.240, 0.245, 0.250, 0.260, 0.220, 0.230, 0.270, 0.220, 0.200, 0.240, 0.250, 0.210, 0.200, 0.260, 0.240, 0.230, 0.270, 0.250, 0.220, 0.200, 0.220, 0.240, 0.260, 0.230, 0.240, 0.210, 0.220, 0.150, 0.140, 0.160, 0.145, 0.130, 0.135, 0.148, 0.143, 0.137, 0.142, 0.155, 0.139, 0.128, 0.154, 0.147, 0.153, 0.132, 0.141, 0.150, 0.138, 0.149, 0.143, 0.136, 0.152, 0.145, 0.139, 0.151, 0.144, 0.153, 0.135, 0.152, 0.138, 0.144, 0.150, 0.141, 0.147, 0.133, 0.148, 0.152,  0.140, 0.143, 0.145, 0.151, 0.136, 0.139),
+  bpm = c(8.5, 7.2, 8.0, 7.8, 6.5, 6.9, 7.5, 7.3, 7.0, 7.6, 2.5, 2.8, 1.0, 4.5, 5.0, 4.0, 3.8, 4.2, 3.2, 4.1, 6.8, 1.0, 4.0, 4.5, 5.0, 6.7, 5.6, 6.8, 5.2, 5.5, 6.2, 5.0, 4.8, 6.1, 6.5, 6.0, 5.8, 6.7, 6.1, 5.9, 7.3, 6.8, 6.5, 6.2, 6.1, 7.0, 6.8, 6.0, 6.5, 5.8, 4.9, 4.5, 3.2, 5.0, 4.3, 3.8, 3.9, 4.8, 4.3, 4.7, 4.2, 5.5, 4.9, 3.8, 5.4, 4.7, 5.3, 4.2, 4.1, 5.0, 3.8, 4.9, 4.3, 4.6, 5.2, 4.5, 3.9, 5.1, 4.4, 5.3, 4.7, 4.2, 5.1, 4.3, 5.4, 4.6, 5.2, 3.9, 5.0, 5.3, 4.0, 4.3, 4.5, 5.1, 3.6, 3.9),
+  vorp = c(7.0, 6.5, 6.8, 6.7, 5.5, 5.8, 6.2, 6.0, 5.9, 6.3, 1.5, 1.8, 0.5, 3.5, 4.0, 3.0, 3.5, 4.0, 3.0, 3.5, 6.2, 0.5, 5.0, 5.2, 4.8, 7.0, 6.5, 6.9, 5.8, 6.0, 6.7, 5.5, 5.1, 6.3, 6.8, 6.2, 5.5, 6.8, 6.4, 6.0, 7.2, 6.9, 6.6, 6.0, 6.5, 7.2, 7.0, 6.5, 6.5, 6.0, 4.9, 4.0, 3.7, 4.5, 4.3, 3.8, 3.9, 4.2, 4.1, 4.5, 4.2, 5.0, 4.3, 3.8, 4.5, 4.1, 5.0, 3.9, 4.2, 5.2, 4.0, 4.9, 4.3, 4.2, 5.1, 4.5, 4.1, 5.0, 4.5, 5.3, 4.7, 4.2, 5.1, 4.3, 5.4, 4.6, 5.2, 3.9, 5.0, 5.3, 4.0, 4.3, 4.5, 5.1, 3.6, 3.9),
+  nba_2k25_rating = c( 98, 96, 95, 98, 96, 96, 95, 95, 96, 95, 79, 78, 70, 81, 83, 84, 89, 84, 81, 81, 91, 76, 92, 87, 92, 93, 86, 89, 89, 88, 88, 85, 88, 87, 93, 81, 81, 92, 85, 87, 89, 85, 88, 84, 90, 92, 89, 84, 87, 85, 78, 79, 72, 70, 69, 80, 81, 84, 75, 78, 80, 84, 78, 82, 77, 74, 81, 78, 73, 70, 80, 85, 81, 76, 72, 70, 79, 81, 75, 73, 81, 78, 70, 82, 81, 77, 73, 78, 79, 75, 74, 73, 84, 83, 82, 85))
+  
+
+
+
+# Adjusted normalization function to scale to a range of 67 to 99
+adjusted_norm <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)) * (99 - 67) + 67)  # Scale to a range that ensures the lowest rating is 67
+}
+
+# Apply adjusted normalization to each criterion
+players$scoring <- adjusted_norm(players$points_per_game)
+players$defense <- adjusted_norm(max(players$defensive_rating) - players$defensive_rating)  # Invert because lower defensive rating is better
+players$playmaking <- adjusted_norm(players$assists_per_game)
+players$efficiency <- adjusted_norm(players$per)
+players$impact <- adjusted_norm(players$win_shares_per_48)
+players$bpm_norm <- adjusted_norm(players$bpm)
+players$vorp_norm <- adjusted_norm(players$vorp)
+
+# Calculate final rating
+players$final_rating_formula <- rowMeans(players[, c("scoring", "defense", "playmaking", "efficiency", "impact")])
+
+# Prepare data for ridge regression
+x <- as.matrix(players[, c("points_per_game", "defensive_rating", "assists_per_game", "per", "win_shares_per_48", "bpm", "vorp")])
+y <- players$nba_2k25_rating
+
+# Fit ridge regression model
+ridge_model <- cv.glmnet(x, y, alpha = 0)
+
+# Predict ratings using the ridge regression model
+players$predicted_rating_ridge <- predict(ridge_model, s = "lambda.min", newx = x)
+
+# Calculate correlation coefficient between predicted_rating and 2K rating
+correlation_coefficient_formula <- cor(players$final_rating_formula, players$nba_2k25_rating)
+correlation_coefficient_ridge <- cor(players$predicted_rating_ridge, players$nba_2k25_rating)
+
+# Rank players by final_rating in descending order
+ranked_players_formula <- players[order(-players$final_rating_formula), ]
+ranked_players_ridge <- players[order(-players$predicted_rating_ridge), ]
+
+# Display final ratings and correlation coefficients
+print("Ranked Players by Formula-Based Ratings:")
+print(ranked_players_formula[, c("name", "final_rating_formula", "nba_2k25_rating")])
+print(paste("The correlation coefficient between the formula ratings and the actual ratings is", correlation_coefficient_formula))
+
+print("\nRanked Players by Ridge Regression-Based Ratings:")
+print(ranked_players_ridge[, c("name", "predicted_rating_ridge", "nba_2k25_rating")])
+print("The correlation coefficient between the ridge regression ratings and the actual ratings is")
+correlation_coefficient_ridge
+
+library(ggplot2)
+ggplot(players, aes(x = nba_2k25_rating, y = final_rating_formula)) +
+  geom_point(color = 'blue') +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = 'Formula Ratings vs. 2K Ratings', x = '2K Ratings', y = 'Formula Ratings')
+ggplot(players, aes(x = nba_2k25_rating, y = predicted_rating_ridge)) +
+  geom_point(color = 'green') +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = 'Ridge Regression Ratings vs. 2K Ratings', x = '2K Ratings', y = 'Ridge Ratings')
+
+write.csv(ranked_players_formula, "formula_based_rankings.csv")
+write.csv(ranked_players_ridge, "ridge_based_rankings.csv")
+coef(ridge_model, s = "lambda.min")
+
+# Hyperparameter tuning for lambda in ridge regression
+lambda_grid <- 10^seq(3, -3, by = -1)
+ridge_model_tuned <- cv.glmnet(x, y, alpha = 0, lambda = lambda_grid)
+best_lambda <- ridge_model_tuned$lambda.min
+print(paste("Best lambda:", best_lambda))
+
+# Feature importance based on ridge regression coefficients
+coefficients <- coef(ridge_model, s = "lambda.min")
+coefficients_df <- data.frame(
+  feature = rownames(coefficients),
+  importance = as.vector(coefficients)
+)
+coefficients_df <- coefficients_df[-1,]  # Remove the intercept
+coefficients_df <- coefficients_df[order(abs(coefficients_df$importance), decreasing = TRUE), ]
+
+print("Feature Importance from Ridge Regression:")
+print(coefficients_df)
+
+# Input player names and rank based on formula or ridge regression
+custom_player_names <- c("Nikola Jokic", "Stephen Curry", "Furkan Korkmaz")
+custom_players <- players[players$name %in% custom_player_names, ]
+custom_players_formula <- custom_players[order(-custom_players$final_rating_formula), ]
+custom_players_ridge <- custom_players[order(-custom_players$predicted_rating_ridge), ]
+
+print("Custom Player Rankings based on Formula:")
+print(custom_players_formula[, c("name", "final_rating_formula")])
+print("Custom Player Rankings based on Ridge Regression:")
+print(custom_players_ridge[, c("name", "predicted_rating_ridge")])
+
+# Save feature importance to CSV
+write.csv(coefficients_df, "feature_importance.csv")
+
+# Save custom player rankings
+write.csv(custom_players_formula, "custom_player_formula_rankings.csv")
+write.csv(custom_players_ridge, "custom_player_ridge_rankings.csv")
+
+# Bar plot of feature importance
+ggplot(coefficients_df, aes(x = reorder(feature, importance), y = importance)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +
+  labs(title = "Feature Importance from Ridge Regression", x = "Feature", y = "Importance")
+
+# Distribution plot of the ratings
+ggplot(players, aes(x = final_rating_formula)) +
+  geom_histogram(binwidth = 1, fill = "blue", alpha = 0.7) +
+  labs(title = "Distribution of Formula-Based Ratings", x = "Formula Ratings", y = "Frequency")
+
+ggplot(players, aes(x = predicted_rating_ridge)) +
+  geom_histogram(binwidth = 1, fill = "green", alpha = 0.7) +
+  labs(title = "Distribution of Ridge Regression Ratings", x = "Ridge Regression Ratings", y = "Frequency")
+
+# Calculate MAE and RMSE for both models
+mae_formula <- mean(abs(players$final_rating_formula - players$rating_2k))
+rmse_formula <- sqrt(mean((players$final_rating_formula - players$rating_2k)^2))
+
+mae_ridge <- mean(abs(players$predicted_rating_ridge - players$rating_2k))
+rmse_ridge <- sqrt(mean((players$predicted_rating_ridge - players$rating_2k)^2))
+
+print(paste("MAE for formula-based ratings:", mae_formula))
+print(paste("RMSE for formula-based ratings:", rmse_formula))
+
+print(paste("MAE for ridge regression ratings:", mae_ridge))
+print(paste("RMSE for ridge regression ratings:", rmse_ridge))
+
+# Fit lasso regression model
+lasso_model <- cv.glmnet(x, y, alpha = 1)
+players$predicted_rating_lasso <- predict(lasso_model, s = "lambda.min", newx = x)
+
+# Compare correlations of ridge and lasso models
+correlation_coefficient_lasso <- cor(players$predicted_rating_lasso, players$rating_2k)
+print(paste("The correlation coefficient between the lasso regression ratings and the actual ratings is", correlation_coefficient_lasso))
+
+# Calculate residuals for ridge regression
+players$residuals_ridge <- players$nba_2k25_rating - players$predicted_rating_ridge
+
+# Visualize residuals
+ggplot(players, aes(x = predicted_rating_ridge, y = residuals_ridge)) +
+  geom_point(color = 'purple') +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = 'Residual Analysis for Ridge Regression', x = 'Predicted Ratings', y = 'Residuals')
+
+# Rank players by specific skill areas
+ranked_by_scoring <- players[order(-players$scoring), c("name", "scoring")]
+ranked_by_defense <- players[order(-players$defense), c("name", "defense")]
+
+print("Top Players by Scoring:")
+print(head(ranked_by_scoring, 5))
+
+print("Top Players by Defense:")
+print(head(ranked_by_defense, 5))
+
+library(stats)
+
+# Perform PCA
+player_stats <- players[, c("points_per_game", "defensive_rating", "assists_per_game", "per", "win_shares_per_48", "bpm", "vorp")]
+pca_model <- prcomp(player_stats, scale. = TRUE)
+
+# Add PCA components to the dataset
+players$PC1 <- pca_model$x[, 1]
+players$PC2 <- pca_model$x[, 2]
+
+# Visualize PCA
+ggplot(players, aes(x = PC1, y = PC2, label = name)) +
+  geom_point(color = 'blue') +
+  geom_text(size = 3, hjust = 1.1, vjust = 1.1) +
+  labs(title = "PCA of Player Stats", x = "Principal Component 1", y = "Principal Component 2")
+
+# Fit lasso regression for comparison
+lasso_model <- cv.glmnet(x, y, alpha = 1)
+players$predicted_rating_lasso <- predict(lasso_model, s = "lambda.min", newx = x)
+
+# Compare correlations
+correlation_lasso <- cor(players$predicted_rating_lasso, players$rating_2k)
+print(paste("The correlation coefficient for Lasso regression is", correlation_lasso))
+
+# Save correlation coefficients
+correlation_results <- data.frame(
+  Model = c("Formula", "Ridge Regression", "Lasso Regression"),
+  Correlation = c(correlation_coefficient_formula, correlation_coefficient_ridge, correlation_lasso)
+)
+write.csv(correlation_results, "correlation_results.csv")
+
+# Save feature importance
+write.csv(correlation_coefficient_ridge, "ridge_feature_importance.csv")
+
+# Load necessary libraries for diagnostics
+library(car)  # for vif
+library(MASS) # for influence measures
+library(glmnet)
+
+# Calculate Variance Inflation Factor (VIF)
+vif_results <- vif(lm(y ~ ., data = as.data.frame(x)))
+print("Variance Inflation Factors (VIF):")
+print(vif_results)
+
+# Load necessary libraries
+library(glmnet)
+library(Matrix)
+
+# Sample data
+set.seed(42)
+X <- as.matrix(cbind(1, matrix(rnorm(100), nrow = 20)))  # Add intercept (column of 1s)
+y <- rnorm(20)
+
+# Fit the ridge regression model
+ridge_model <- glmnet(X, y, alpha = 0)  # alpha = 0 for ridge regression
+
+# Extract the coefficients for a particular lambda (e.g., lambda = 0.1)
+lambda_index <- which.min(ridge_model$lambda)  # Use the best lambda by CV or choose one manually
+lambda <- ridge_model$lambda[lambda_index]
+
+# Compute the hat matrix for ridge regression
+XtX <- t(X) %*% X
+XtX_lambda_inv <- solve(XtX + lambda * diag(ncol(X)))  # Regularized inverse
+H_ridge <- X %*% XtX_lambda_inv %*% t(X)
+
+# Leverage values (diagonal of the hat matrix)
+leverage_values <- diag(H_ridge)
+
+# Add leverage to the data
+data <- cbind(as.data.frame(X), leverage = leverage_values)
+
+# Display the leverage values
+print(data)
+
+# Optional: Plot leverage values against the predictor variable (excluding intercept column)
+library(ggplot2)
+ggplot(data, aes(x = X[, 2], y = leverage)) +  # X[, 2] assumes the first column is the intercept
+  geom_point() +
+  labs(title = "Leverage vs Predictor", x = "Predictor (x)", y = "Leverage")
+
+
+# Calculate Cook's Distance
+# Load necessary libraries
+library(glmnet)
+
+# Sample data
+set.seed(42)
+X <- as.matrix(cbind(1, matrix(rnorm(100), nrow = 20)))  # Add intercept (column of 1s)
+y <- rnorm(20)
+
+# Fit the ridge regression model
+ridge_model <- glmnet(X, y, alpha = 0)  # alpha = 0 for ridge regression
+
+# Extract the coefficients for a particular lambda (e.g., lambda = 0.1)
+lambda_index <- which.min(ridge_model$lambda)  # Use the best lambda by CV or choose one manually
+lambda <- ridge_model$lambda[lambda_index]
+
+# Compute the fitted values (predictions)
+fitted_values <- predict(ridge_model, s = lambda, newx = X)
+
+# Compute the residuals
+residuals <- y - fitted_values
+
+# Compute the Mean Squared Error (MSE)
+mse <- mean(residuals^2)
+
+# Compute the hat matrix (leverage values)
+XtX <- t(X) %*% X
+XtX_lambda_inv <- solve(XtX + lambda * diag(ncol(X)))  # Regularized inverse
+H_ridge <- X %*% XtX_lambda_inv %*% t(X)
+
+# Leverage values (diagonal of the hat matrix)
+h_ii <- diag(H_ridge)
+
+# Compute Cook's distances
+cooks_distances <- (residuals^2 / (ncol(X) * mse)) * (h_ii / (1 - h_ii)^2)
+
+# Combine data with Cook's distances
+data <- cbind(as.data.frame(X), Cook_Distance = cooks_distances)
+
+# Display Cook's distances
+print(data)
+
+# Optional: Plot Cook's distance against the predictor variable (excluding intercept column)
+library(ggplot2)
+ggplot(data, aes(x = X[, 2], y = cooks_distances)) +  # X[, 2] assumes the first column is the intercept
+  geom_point() +
+  labs(title = "Cook's Distance vs Predictor", x = "Predictor (x)", y = "Cook's Distance")
+
+
+# You can filter the players dataframe to highlight high leverage and influential points
+high_leverage_players <- players[players$leverage > 2 * (nrow(players) / ncol(x)), ]
+high_cooks_distance_players <- players[players$cooks_distance > 1, ]
+
+```
+
